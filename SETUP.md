@@ -43,10 +43,6 @@ The parser uses recursive descent parsing to convert tokens into an Abstract Syn
 - Support for both brace-based and indentation-based blocks
 - Comprehensive error reporting with token context
 
-## Bare Minimum Files to Push
-
-To run and test the lexer and parser, you need these files:
-
 ### Core Source Files
 ```
 src/
@@ -131,15 +127,6 @@ let grad_x = grad(x^2 + 2*x + 1, [x])
 - `tests/test_lexer_only.py`: Standalone lexer test
 - `tests/test_parser_only.py`: Standalone parser test
 - `main.py`: Full compiler with CLI interface
-
-## Next Steps
-
-Once the lexer and parser are working, you can add:
-- Semantic analysis (`semantic_analyzer.py`)
-- Intermediate representation (`ir.py`)
-- Code generation (`codegen.py`)
-- Automatic differentiation (`autodiff.py`)
-- Full compiler integration (`compiler.py`)
 
 ## Troubleshooting
 
