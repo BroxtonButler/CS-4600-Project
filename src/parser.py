@@ -106,7 +106,11 @@ class Parser:
             elif expr:
                 # Expression statement (e.g., function call)
                 return expr
-            return None
+            else:
+                # If parsing failed and we're not at EOF, skip this token to avoid infinite loop
+                if not self._is_at_end():
+                    self._advance()
+                return None
     
     def _parse_variable_declaration(self) -> VariableDeclaration:
         """Parse variable declaration: let name: type = value"""
@@ -362,12 +366,22 @@ class Parser:
     
     def _parse_term(self) -> Optional[Expression]:
         """Parse addition and subtraction."""
-        expr = self._parse_factor()
+        expr = self._parse_matmul()
         
         while self._match(TokenType.PLUS, TokenType.MINUS):
             operator = self._previous()
-            right = self._parse_factor()
+            right = self._parse_matmul()
             expr = BinaryOp(expr, operator.value, right, expr.line, expr.column)
+        
+        return expr
+    
+    def _parse_matmul(self) -> Optional[Expression]:
+        """Parse matrix multiplication."""
+        expr = self._parse_factor()
+        
+        while self._match(TokenType.MATMUL):
+            right = self._parse_factor()
+            expr = MatrixMul(expr, right, expr.line, expr.column)
         
         return expr
     
@@ -436,7 +450,9 @@ class Parser:
                         break
             self._consume(TokenType.RIGHT_BRACKET, "Expected ']' after tensor")
             return TensorLiteral(values, self._previous().line, self._previous().column)
-        elif self._match(TokenType.IDENTIFIER):
+        elif self._match(TokenType.IDENTIFIER, TokenType.SUM, TokenType.MEAN, TokenType.MAX, 
+                        TokenType.MIN, TokenType.RELU, TokenType.SIGMOID, TokenType.TANH, 
+                        TokenType.EXP, TokenType.LOG, TokenType.SQRT):
             token = self._previous()
             name = token.value
             
@@ -452,29 +468,6 @@ class Parser:
                             break
                 self._consume(TokenType.RIGHT_PAREN, "Expected ')' after arguments")
                 return FunctionCall(name, arguments, token.line, token.column)
-            
-            # Check for tensor operations
-            if self._match(TokenType.LEFT_PAREN):
-                operand = self._parse_expression()
-                self._consume(TokenType.RIGHT_PAREN, "Expected ')' after operand")
-                
-                # Parse additional parameters for some operations
-                axis = None
-                keepdims = False
-                if self._match(TokenType.COMMA):
-                    if self._match(TokenType.IDENTIFIER) and self._previous().value == 'axis':
-                        self._consume(TokenType.ASSIGN, "Expected '=' after 'axis'")
-                        if self._match(TokenType.NUMBER):
-                            axis = int(self._previous().value)
-                        if self._match(TokenType.COMMA):
-                            if self._match(TokenType.IDENTIFIER) and self._previous().value == 'keepdims':
-                                self._consume(TokenType.ASSIGN, "Expected '=' after 'keepdims'")
-                                if self._match(TokenType.TRUE):
-                                    keepdims = True
-                                elif self._match(TokenType.FALSE):
-                                    keepdims = False
-                
-                return TensorOp(name, operand, axis, keepdims, token.line, token.column)
             
             # Check for transpose
             if self._match(TokenType.DOT):
