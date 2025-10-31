@@ -94,6 +94,9 @@ class Parser:
             if self._match(TokenType.DEDENT):
                 pass  # consume DEDENT
             return Block(statements) if statements else None
+        elif self._check(TokenType.IDENTIFIER) and self._peek().value == 'tensor':
+            # Handle C-style variable declarations: tensor<f32, [3, 1]> a;
+            return self._parse_c_style_variable_declaration()
         else:
             # Try to parse as assignment or expression statement
             expr = self._parse_expression()
@@ -138,11 +141,54 @@ class Parser:
         
         return VariableDeclaration(name, type_info, value, name_token.line, name_token.column)
     
+    def _parse_c_style_variable_declaration(self) -> VariableDeclaration:
+        """Parse C-style variable declaration: tensor<f32, [3, 1]> a; or tensor<f32, [3, 1]> a = value;"""
+        # Parse the type annotation
+        type_info = self._parse_type_annotation()
+        
+        # Parse variable name
+        if not self._match(TokenType.IDENTIFIER):
+            raise ParseError("Expected variable name after type", self._peek())
+        
+        name_token = self._previous()
+        name = name_token.value
+        
+        # Parse initial value if present
+        value = None
+        if self._match(TokenType.ASSIGN):
+            value = self._parse_expression()
+        
+        # Consume semicolon if present
+        self._match(TokenType.SEMICOLON)
+        
+        return VariableDeclaration(name, type_info, value, name_token.line, name_token.column)
+    
     def _parse_type_annotation(self) -> TypeInfo:
-        """Parse type annotation: tensor[2, 3] or float"""
+        """Parse type annotation: tensor<f32, [2, 3]> or tensor[2, 3] or float"""
         if self._match(TokenType.IDENTIFIER):
             type_name = self._previous().value
+            dtype = 'f32'  # default dtype
+            
             if type_name == 'tensor':
+                # Check for new syntax: tensor<f32, [2, 3]>
+                if self._check(TokenType.LESS_THAN):
+                    self._advance()  # consume '<'
+                    
+                    # Parse dtype
+                    if self._match(TokenType.F32, TokenType.F64, TokenType.I32, TokenType.I64):
+                        dtype_token = self._previous()
+                        if dtype_token.type == TokenType.F32:
+                            dtype = 'f32'
+                        elif dtype_token.type == TokenType.F64:
+                            dtype = 'f64'
+                        elif dtype_token.type == TokenType.I32:
+                            dtype = 'i32'
+                        elif dtype_token.type == TokenType.I64:
+                            dtype = 'i64'
+                    
+                    # Consume comma if present
+                    self._match(TokenType.COMMA)
+                
                 # Parse tensor shape
                 shape = []
                 if self._match(TokenType.LEFT_BRACKET):
@@ -152,9 +198,27 @@ class Parser:
                         if self._match(TokenType.COMMA):
                             continue
                     self._consume(TokenType.RIGHT_BRACKET, "Expected ']' after tensor shape")
-                return TypeInfo('tensor', shape)
+                
+                # Consume '>' if we saw '<' earlier
+                if self._check(TokenType.GREATER_THAN):
+                    self._advance()  # consume '>'
+                
+                type_info = TypeInfo('tensor', shape)
+                type_info.tensor_dtype = dtype
+                return type_info
             else:
                 return TypeInfo(type_name)
+        elif self._match(TokenType.F32, TokenType.F64, TokenType.I32, TokenType.I64):
+            # Handle numeric type tokens directly
+            dtype_token = self._previous()
+            if dtype_token.type == TokenType.F32:
+                return TypeInfo('f32')
+            elif dtype_token.type == TokenType.F64:
+                return TypeInfo('f64')
+            elif dtype_token.type == TokenType.I32:
+                return TypeInfo('i32')
+            elif dtype_token.type == TokenType.I64:
+                return TypeInfo('i64')
         else:
             raise ParseError("Expected type name", self._peek())
     
