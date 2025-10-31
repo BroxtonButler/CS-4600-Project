@@ -13,12 +13,14 @@ DLite is a custom programming language designed for machine learning and scienti
 
 ### Key Features
 
-- **Lexer & Parser**: Complete tokenization and AST generation
-- **Type System**: Support for tensors with shape annotations
-- **Tensor Operations**: `sum`, `mean`, `relu`, `sigmoid`, matrix multiplication (`@`)
-- **Control Flow**: `if/else`, `while`, `for` loops
-- **Functions**: User-defined functions with type annotations
-- **Automatic Differentiation**: `grad()` function for computing derivatives
+- **Lexer & Parser**: Complete tokenization and AST generation with comprehensive syntax support
+- **Semantic Analyzer**: Full type checking, shape inference, and error detection
+- **Type System**: Support for tensors with shape annotations (`tensor<f32, [3, 4]>`)
+- **Tensor Operations**: Built-in functions (`sum`, `mean`, `relu`, `sigmoid`), matrix multiplication (`@`)
+- **Broadcasting**: NumPy-style broadcasting for tensor operations
+- **Functions**: User-defined functions with type annotations and return types
+- **Variable Declarations**: Both `let` syntax and C-style declarations
+- **Error Handling**: Comprehensive error reporting with line/column information
 
 ## 🏗️ Architecture
 
@@ -38,10 +40,12 @@ DLite Source Code
 
 ### Core Components
 
-- **`src/lexer.py`**: Tokenizes DLite source code
-- **`src/parser.py`**: Parses tokens into Abstract Syntax Tree
-- **`src/dlite_ast.py`**: AST node definitions and type system
-- **`tests/`**: Comprehensive test suite
+- **`src/lexer.py`**: Tokenizes DLite source code with full syntax support
+- **`src/parser.py`**: Parses tokens into Abstract Syntax Tree with type annotations
+- **`src/dlite_ast.py`**: AST node definitions and comprehensive type system
+- **`src/semantic_analyzer.py`**: Type checking, shape inference, and error detection
+- **`src/symbol_table.py`**: Scoped symbol management for variables and functions
+- **`tests/`**: Comprehensive test suite with 100% semantic analyzer test coverage
 
 ## 👥 Team Members
 
@@ -59,9 +63,16 @@ DLite Source Code
 - [x] Lexer implementation with comprehensive token support
 - [x] Parser implementation with recursive descent parsing
 - [x] AST node definitions and type system
-- [x] Basic test suite for lexer and parser
+- [x] **Semantic analyzer with full type checking and shape inference**
+- [x] **Built-in function support (`sum`, `mean`, `relu`, `sigmoid`, etc.)**
+- [x] **NumPy-style broadcasting for tensor operations**
+- [x] **Function declarations with type annotations and return types**
+- [x] **C-style variable declarations (`tensor<f32, [3, 4]> a;`)**
+- [x] **Comprehensive error handling with line/column information**
+- [x] **Symbol table with scoped variable and function management**
+- [x] **Complete test suite with 100% semantic analyzer test coverage**
 
-### 🔄 In Progress (Phase 3)
+### 🔄 Ready for Phase 3
 - [ ] **Intermediate Representation (IR)**: Custom Python IR for computation graphs
 - [ ] **AST to IR Converter**: Transform AST into IR nodes
 - [ ] **Shape Inference**: Automatic shape computation for tensors
@@ -88,6 +99,9 @@ python tests/test_lexer_only.py
 # Test the parser  
 python tests/test_parser_only.py
 
+# Test the semantic analyzer (100% test coverage!)
+python tests/test_semantic_analyzer.py
+
 # Run all tests
 python -m pytest tests/
 ```
@@ -95,26 +109,32 @@ python -m pytest tests/
 ### Example DLite Code
 
 ```dlite
-# Variable declarations with type annotations
-let A: tensor[2, 2] = [[1, 2], [3, 4]]
-let B: tensor[2, 2] = [[5, 6], [7, 8]]
+# C-style variable declarations with type annotations
+tensor<f32, [2, 2]> A = [[1.0, 2.0], [3.0, 4.0]];
+tensor<f32, [2, 2]> B = [[5.0, 6.0], [7.0, 8.0]];
 
-# Matrix operations
-let C = A @ B
-let D = A.T
+# Matrix operations with broadcasting
+tensor<f32, [2, 2]> C = A @ B;
+tensor<f32, [2, 2]> D = A.T;
 
-# Tensor operations
-let sum_A = sum(A)
-let relu_A = relu(A)
-let mean_B = mean(B, axis=0)
+# Built-in tensor operations
+let sum_A = sum(A);
+let relu_A = relu(A);
+let mean_B = mean(B);
 
-# Function declaration
-func multiply(x: tensor[2, 2], y: tensor[2, 2]) -> tensor[2, 2] {
-    return x @ y
+# Function declaration with type annotations
+func multiply(x: tensor<f32, [2, 2]>, y: tensor<f32, [2, 2]>) -> tensor<f32, [2, 2]> {
+    return x @ y;
 }
 
-# Automatic differentiation
-let grad_x = grad(x^2 + 2*x + 1, [x])
+# Complex expressions with broadcasting
+tensor<f32, [5, 10]> X;
+tensor<f32, [10, 3]> W;
+tensor<f32, [3]> bias;
+let result = relu(X @ W + bias);
+
+# Automatic differentiation (coming in Phase 4)
+let grad_x = grad(x^2 + 2*x + 1, [x]);
 ```
 
 ## 🛠️ Development Workflow
@@ -144,12 +164,15 @@ let grad_x = grad(x^2 + 2*x + 1, [x])
 CS-4600-Project/
 ├── src/                    # Source code
 │   ├── __init__.py        # Package initialization
-│   ├── lexer.py           # Tokenizer
-│   ├── parser.py          # Parser
-│   └── dlite_ast.py       # AST definitions
-├── tests/                  # Test suite
+│   ├── lexer.py           # Tokenizer with full syntax support
+│   ├── parser.py          # Parser with type annotations
+│   ├── dlite_ast.py       # AST definitions and type system
+│   ├── semantic_analyzer.py # Type checking and shape inference
+│   └── symbol_table.py    # Scoped symbol management
+├── tests/                  # Comprehensive test suite
 │   ├── test_lexer_only.py
-│   └── test_parser_only.py
+│   ├── test_parser_only.py
+│   └── test_semantic_analyzer.py # 100% test coverage
 ├── docs/                   # Documentation
 │   └── phase-3-implementation.plan.md
 ├── README.md              # This file
@@ -158,11 +181,11 @@ CS-4600-Project/
 
 ## 🔧 Current Issues & Tasks
 
-### High Priority
-- [ ] Fix parser bug in complex expression handling
-- [ ] Complete semantic analyzer implementation
-- [ ] Implement IR node data structures
-- [ ] Add comprehensive error handling
+### High Priority (Phase 3)
+- [ ] **Implement IR node data structures** (`src/ir_node.py`)
+- [ ] **Create computation graph structure** (`src/computation_graph.py`)
+- [ ] **Build AST to IR converter** (`src/ast_to_ir.py`)
+- [ ] **Add comprehensive IR test suite** (`tests/test_ir.py`)
 
 ### Medium Priority  
 - [ ] Add more test cases for edge cases
@@ -192,4 +215,4 @@ This project is part of CS-4600 coursework. See [LICENSE](LICENSE) for details.
 ---
 
 **Last Updated**: December 2024  
-**Status**: Phase 3 - Intermediate Representation Development
+**Status**: Phase 2 Complete ✅ - Ready for Phase 3 (Intermediate Representation)

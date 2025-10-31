@@ -11,14 +11,15 @@ from dataclasses import dataclass
 @dataclass
 class TypeInfo:
     """Type information for AST nodes."""
-    dtype: str  # 'float', 'int', 'bool', 'tensor'
+    dtype: str  # 'float', 'int', 'bool', 'tensor', or 'f32', 'f64', 'i32', 'i64'
     shape: Optional[List[int]] = None  # For tensors: [dim1, dim2, ...]
     is_gradient: bool = False  # True if this is a gradient tensor
     
     def __str__(self):
         if self.dtype == 'tensor':
             shape_str = f"[{', '.join(map(str, self.shape))}]" if self.shape else "[]"
-            return f"tensor{shape_str}"
+            dtype_str = getattr(self, 'tensor_dtype', 'f32')
+            return f"tensor<{dtype_str}, {shape_str}>"
         return self.dtype
 
 

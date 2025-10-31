@@ -59,6 +59,12 @@ class TokenType(Enum):
     LOG = "LOG"
     SQRT = "SQRT"
     
+    # Data type keywords
+    F32 = "F32"
+    F64 = "F64"
+    I32 = "I32"
+    I64 = "I64"
+    
     # Shape operations
     RESHAPE = "RESHAPE"
     CONCAT = "CONCAT"
@@ -136,6 +142,10 @@ class Lexer:
             'concat': TokenType.CONCAT,
             'slice': TokenType.SLICE,
             'grad': TokenType.GRAD,
+            'f32': TokenType.F32,
+            'f64': TokenType.F64,
+            'i32': TokenType.I32,
+            'i64': TokenType.I64,
         }
     
     def tokenize(self) -> List[Token]:
@@ -329,6 +339,9 @@ class Lexer:
         # Single-character operators
         elif char == '+':
             self.tokens.append(Token(TokenType.PLUS, "+", start_line, start_col))
+        elif char == '-' and self._peek() == '>':
+            self._advance()
+            self.tokens.append(Token(TokenType.ARROW, "->", start_line, start_col))
         elif char == '-':
             self.tokens.append(Token(TokenType.MINUS, "-", start_line, start_col))
         elif char == '*':
@@ -339,9 +352,6 @@ class Lexer:
             self.tokens.append(Token(TokenType.MODULO, "%", start_line, start_col))
         elif char == '^':
             self.tokens.append(Token(TokenType.POWER, "^", start_line, start_col))
-        elif char == '-' and self._peek() == '>':
-            self._advance()
-            self.tokens.append(Token(TokenType.ARROW, "->", start_line, start_col))
         elif char == '=':
             self.tokens.append(Token(TokenType.ASSIGN, "=", start_line, start_col))
         elif char == '<':
