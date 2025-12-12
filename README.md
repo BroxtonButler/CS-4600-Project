@@ -15,6 +15,7 @@ DLite is a custom programming language designed for machine learning and scienti
 
 - **Lexer & Parser**: Complete tokenization and AST generation with comprehensive syntax support
 - **Semantic Analyzer**: Full type checking, shape inference, and error detection
+- **Intermediate Representation (IR)**: Computation graph with shape inference and validation
 - **Type System**: Support for tensors with shape annotations (`tensor<f32, [3, 4]>`)
 - **Tensor Operations**: Built-in functions (`sum`, `mean`, `relu`, `sigmoid`), matrix multiplication (`@`)
 - **Broadcasting**: NumPy-style broadcasting for tensor operations
@@ -45,7 +46,10 @@ DLite Source Code
 - **`src/dlite_ast.py`**: AST node definitions and comprehensive type system
 - **`src/semantic_analyzer.py`**: Type checking, shape inference, and error detection
 - **`src/symbol_table.py`**: Scoped symbol management for variables and functions
-- **`tests/`**: Comprehensive test suite with 100% semantic analyzer test coverage
+- **`src/ir_node.py`**: IR node data structure with shape inference
+- **`src/computation_graph.py`**: Computation graph structure with topological sorting and validation
+- **`src/ast_to_ir.py`**: AST to IR converter using visitor pattern
+- **`tests/`**: Comprehensive test suite with 100% semantic analyzer test coverage and full IR test suite
 
 ## 👥 Team Members
 
@@ -72,11 +76,14 @@ DLite Source Code
 - [x] **Symbol table with scoped variable and function management**
 - [x] **Complete test suite with 100% semantic analyzer test coverage**
 
-### 🔄 Ready for Phase 3
-- [ ] **Intermediate Representation (IR)**: Custom Python IR for computation graphs
-- [ ] **AST to IR Converter**: Transform AST into IR nodes
-- [ ] **Shape Inference**: Automatic shape computation for tensors
-- [ ] **Computation Graph**: Graph structure for optimization
+### ✅ Completed (Phase 3)
+- [x] **Intermediate Representation (IR)**: Custom Python IR for computation graphs
+- [x] **IRNode class**: Node data structure with shape inference and metadata
+- [x] **ComputationGraph class**: Graph structure with topological sorting and validation
+- [x] **AST to IR Converter**: Transform AST into IR nodes using visitor pattern
+- [x] **Shape Inference**: Automatic shape computation for all tensor operations
+- [x] **Graph Validation**: Cycle detection and node reference validation
+- [x] **Comprehensive IR test suite**: 8 test categories covering all IR functionality
 
 ### 📅 Upcoming (Phase 4)
 - [ ] **Automatic Differentiation**: Gradient computation engine
@@ -101,6 +108,9 @@ python tests/test_parser_only.py
 
 # Test the semantic analyzer (100% test coverage!)
 python tests/test_semantic_analyzer.py
+
+# Test the IR system (comprehensive test suite)
+python -m pytest tests/test_ir.py -v
 
 # Run all tests
 python -m pytest tests/
@@ -137,6 +147,104 @@ let result = relu(X @ W + bias);
 let grad_x = grad(x^2 + 2*x + 1, [x]);
 ```
 
+## 🔬 Intermediate Representation (IR)
+
+The IR system transforms the type-checked AST into a computation graph representation suitable for optimization and code generation.
+
+### IR Format
+
+The IR uses a **Static Single Assignment (SSA)** form where each node represents a single operation that produces one output. Nodes are connected via edges representing data dependencies.
+
+### IR Node Structure
+
+Each `IRNode` contains:
+- **`op_type`**: Operation type (e.g., `"input"`, `"matmul"`, `"add"`, `"relu"`)
+- **`inputs`**: List of input IRNode references
+- **`output_shape`**: Shape of the output tensor
+- **`output_dtype`**: Data type (e.g., `"f32"`, `"i32"`, `"bool"`)
+- **`name`**: Unique identifier for the node
+- **`metadata`**: Optional dict for operation-specific info (e.g., `axis` for reductions)
+
+### Example IR Graph
+
+For the DLite code:
+```dlite
+tensor<f32, [10, 20]> x;
+tensor<f32, [20, 30]> W;
+tensor<f32, [30]> b;
+let y = relu(x @ W + b);
+```
+
+The IR graph structure:
+```
+Input(x) [10, 20] ──┐
+                     ├─> MatMul [10, 30] ──┐
+Input(W) [20, 30] ──┘                      ├─> Add [10, 30] ──> ReLU [10, 30] ──> Output(y)
+Input(b) [30] ────────────────────────────┘
+```
+
+### IR Operations Supported
+
+- **Arithmetic**: `add`, `subtract`, `multiply`, `divide`, `power`
+- **Matrix Operations**: `matmul`, `transpose`
+- **Tensor Operations**: `sum`, `mean`, `max`, `min` (with `axis` and `keepdims`)
+- **Activation Functions**: `relu`, `sigmoid`, `tanh`, `exp`, `log`, `sqrt`
+- **Unary Operations**: `negate`, `not`
+- **Control Flow**: `call` (function calls), `grad` (gradients - Phase 4)
+
+### Shape Inference
+
+The IR automatically infers output shapes for all operations:
+- **Broadcasting**: `[5, 10] + [10] → [5, 10]`
+- **Matrix Multiplication**: `[10, 20] @ [20, 30] → [10, 30]`
+- **Reductions**: `sum([3, 4], axis=0) → [4]`
+- **Activations**: Preserve input shape
+
+### Graph Validation
+
+The `ComputationGraph` class provides:
+- **Topological Sorting**: Kahn's algorithm for execution order
+- **Cycle Detection**: Detects circular dependencies
+- **Node Reference Validation**: Ensures all input references are valid
+- **Variable Mapping**: Tracks variable names to IR nodes
+
+### Using the IR System
+
+```python
+from lexer import tokenize
+from parser import parse
+from semantic_analyzer import SemanticAnalyzer
+from ast_to_ir import ASTToIRConverter
+
+# Full pipeline: Source → IR
+source = """
+tensor<f32, [10, 20]> x;
+tensor<f32, [20, 30]> W;
+let y = x @ W;
+"""
+
+tokens = tokenize(source)
+ast = parse(tokens)
+analyzer = SemanticAnalyzer()
+analyzer.analyze(ast)
+
+converter = ASTToIRConverter(analyzer.symbol_table)
+graph = converter.convert(ast)
+
+# Access the graph
+y_node = graph.get_variable_node("y")
+print(f"Output shape: {y_node.output_shape}")  # [10, 30]
+
+# Validate the graph
+is_valid, errors = graph.validate()
+print(f"Graph valid: {is_valid}")
+
+# Get execution order
+execution_order = graph.topological_sort()
+for node in execution_order:
+    print(f"{node.name}: {node.op_type}")
+```
+
 ## 🛠️ Development Workflow
 
 ### Branch Guidelines
@@ -168,11 +276,15 @@ CS-4600-Project/
 │   ├── parser.py          # Parser with type annotations
 │   ├── dlite_ast.py       # AST definitions and type system
 │   ├── semantic_analyzer.py # Type checking and shape inference
-│   └── symbol_table.py    # Scoped symbol management
+│   ├── symbol_table.py    # Scoped symbol management
+│   ├── ir_node.py         # IR node data structure
+│   ├── computation_graph.py # Computation graph structure
+│   └── ast_to_ir.py       # AST to IR converter
 ├── tests/                  # Comprehensive test suite
 │   ├── test_lexer_only.py
 │   ├── test_parser_only.py
-│   └── test_semantic_analyzer.py # 100% test coverage
+│   ├── test_semantic_analyzer.py # 100% test coverage
+│   └── test_ir.py         # Comprehensive IR test suite
 ├── docs/                   # Documentation
 │   └── phase-3-implementation.plan.md
 ├── README.md              # This file
@@ -181,11 +293,11 @@ CS-4600-Project/
 
 ## 🔧 Current Issues & Tasks
 
-### High Priority (Phase 3)
-- [ ] **Implement IR node data structures** (`src/ir_node.py`)
-- [ ] **Create computation graph structure** (`src/computation_graph.py`)
-- [ ] **Build AST to IR converter** (`src/ast_to_ir.py`)
-- [ ] **Add comprehensive IR test suite** (`tests/test_ir.py`)
+### High Priority (Phase 4)
+- [ ] **Automatic Differentiation**: Implement gradient computation engine
+- [ ] **Code Generation**: Generate target code (Python/NumPy)
+- [ ] **Graph Optimization**: Implement graph optimization and fusion
+- [ ] **End-to-End Integration**: Complete compiler pipeline
 
 ### Medium Priority  
 - [ ] Add more test cases for edge cases
@@ -215,4 +327,4 @@ This project is part of CS-4600 coursework. See [LICENSE](LICENSE) for details.
 ---
 
 **Last Updated**: December 2024  
-**Status**: Phase 2 Complete ✅ - Ready for Phase 3 (Intermediate Representation)
+**Status**: Phase 3 Complete ✅ - Ready for Phase 4 (Automatic Differentiation & Code Generation)
